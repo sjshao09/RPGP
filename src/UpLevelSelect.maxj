@@ -1,0 +1,255 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Mem.DualPortMemOutputs;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Mem.RamPortParams;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Mem.RamPortMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Mem.RamWriteMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count.Counter;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count.WrapMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.Reductions;
+import com.maxeler.maxcompiler.v2.utils.MathUtils;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.KernelMath;
+
+
+class UpLevelSelect extends KernelLib {
+
+	private DFEVector<DFEVar> UP_OUT;
+	private DFEVector<DFEVar> LOW_OUT;
+	private DFEVar FIT_OUT;
+
+	public DFEVector<DFEVar> getUP() {return UP_OUT;}
+	public DFEVector<DFEVar> getLOW() {return LOW_OUT;}
+	public DFEVar getFIT() {return FIT_OUT;}
+	
+
+	UpLevelSelect (int ID, KernelLib owner, DFEVector<DFEVar> UP_IN, DFEVar Sigma, DFEVar LowEps) {
+	
+		super(owner);
+		
+		/////////////////////// Uniform Random Number Generator for BRAM Address ///////////////////////
+		
+		Rand128 RandGen = new Rand128(ID, this);
+		
+		DFEVar Rand  = RandGen.getRand();
+		
+		int LowLevelBitWidth = MathUtils.bitsToAddress(Def.LowLevelPopulation);
+		int UpLevelBitWidth = MathUtils.bitsToAddress(Def.UpLevelPopulation);
+				
+		DFEVar AddrUp = Rand.slice(0, UpLevelBitWidth).cast(dfeUInt(UpLevelBitWidth));
+		DFEVar AddrLow0 = Rand.slice(UpLevelBitWidth+LowLevelBitWidth*0, LowLevelBitWidth).cast(dfeUInt(LowLevelBitWidth));
+		DFEVar AddrLow1 = Rand.slice(UpLevelBitWidth+LowLevelBitWidth*1, LowLevelBitWidth).cast(dfeUInt(LowLevelBitWidth));
+		DFEVar AddrLow2 = Rand.slice(UpLevelBitWidth+LowLevelBitWidth*2, LowLevelBitWidth).cast(dfeUInt(LowLevelBitWidth));
+		DFEVar AddrLow3 = Rand.slice(UpLevelBitWidth+LowLevelBitWidth*3, LowLevelBitWidth).cast(dfeUInt(LowLevelBitWidth));
+		DFEVar AddrLow4 = Rand.slice(UpLevelBitWidth+LowLevelBitWidth*4, LowLevelBitWidth).cast(dfeUInt(LowLevelBitWidth));
+		DFEVar AddrLow5 = Rand.slice(UpLevelBitWidth+LowLevelBitWidth*5, LowLevelBitWidth).cast(dfeUInt(LowLevelBitWidth));
+		DFEVar AddrLow6 = Rand.slice(UpLevelBitWidth+LowLevelBitWidth*6, LowLevelBitWidth).cast(dfeUInt(LowLevelBitWidth));
+		DFEVar AddrLow7 = Rand.slice(UpLevelBitWidth+LowLevelBitWidth*7, LowLevelBitWidth).cast(dfeUInt(LowLevelBitWidth));
+		
+		
+		/////////////////////// Gaussian Random Number Generator for Low Level Mutation ///////////////////////
+		
+		Rand128 [] URandGen = new Rand128[Def.LowLevelSize];
+		NrandomCore [] NRandGen = new NrandomCore[Def. LowLevelSize];
+		DFEVector<DFEVar> RAND_LOW = Def.LowLevelVec.newInstance(this);
+		
+		optimization.pushPipeliningFactor(Def.PipeliningFactor);
+		for (int i=0; i<Def.LowLevelSize; i++) {
+			URandGen[i] = new Rand128((ID+i)%10, this);
+			NRandGen[i] = new NrandomCore(this, URandGen[i].getRand());
+			RAND_LOW[i] <== NRandGen[i].getOutput() * Sigma;
+		}
+		optimization.popPipeliningFactor();
+
+		DFEVector<DFEVar> ABS_RAND_LOW = Def.LowLevelVec.newInstance(this);
+		for (int i=0; i<Def.LowLevelSize; i++) {
+			ABS_RAND_LOW[i] <== KernelMath.abs(RAND_LOW[i]);
+		}	
+
+
+	
+		/////////////////////// Gaussian Random Number Generator for Up Level BRAM Initialisation ///////////////////////
+		
+		//NrandomCore BRAMDataGen = new NrandomCore(this, Rand);
+		//DFEVar BRAMInitData = BRAMDataGen.getOutput();
+		DFEVar isInit = control.count.pulse(512);  // True at first 512 cycles
+		DFEVar InitAddr = control.count.simpleCounter(8, Def.UpLevelPopulation).cast(dfeUInt(UpLevelBitWidth));
+		
+		
+		/////////////////////// Tick Count ///////////////////////
+		
+		DFEVar Reset = Def.BoolType.newInstance(this);
+		Count.Params TickParam = control.count.makeParams(32).withReset(Reset);
+		Counter TickCounter = control.count.makeCounter(TickParam);
+		DFEVar Tick = TickCounter.getCount();
+
+	
+		/////////////////////// Buffering BRAM Address ///////////////////////
+		
+		// Control Variable of BRAM Address Buffer
+		DFEVar BRAMBufferPushEn = (Tick===0);
+		
+		// Buffering the BRAM Address at beginning
+		DFEVar Addr = Reductions.streamHold(AddrUp, BRAMBufferPushEn);
+		
+		
+		/////////////////////// Buffering Upper Level Candidates ///////////////////////
+
+		// Control Variable of Upper Level Vector buffer
+		DFEVar UpBufferPushEn = (Tick===0);
+		
+		// Buffering Input Upper Level Vector
+		DFEVector<DFEVar> UP1 = Def.UpLevelVec.newInstance(this);
+		UP1 = Reductions.streamHold(UP_IN, UpBufferPushEn);
+		
+		// Load a candidate from BRAM
+		DFEVector<DFEVar> BRAMUP = Def.UpLevelVec.newInstance(this);
+//		DFEVector<DFEVar> BRAMLOW = Def.LowLevelVec.newInstance(this);
+		
+		// Buffering Upper Level Vector from BRAM
+		DFEVector<DFEVar> UP2 = Def.UpLevelVec.newInstance(this);	
+		UP2 = Reductions.streamHold(BRAMUP, UpBufferPushEn);
+		
+		// Buffering corresponding Lower Level Vector from BRAM
+//		DFEVector<DFEVar> LOW2 = Def.LowLevelVec.newInstance(this);
+//		LOW2 = Reductions.streamHold(BRAMLOW, UpBufferPushEn);
+	
+		// isValid Signal for Lower Level Vector from BRAM
+//		DFEVar isValid2 = UpBufferPushEn;	
+		
+		/////////////////////// Lower Level Optimisation ///////////////////////
+
+		// isNew signal for Lower Level Optimisation
+		DFEVar isNew = Tick < 512;
+		
+		// Solving Lower Level Optimisation for external Upper Level Vector
+		DFEVar TOPO1 = (Tick > 16384);  // Switch Topology if Tick>16384
+		LowLevelOpt Eva1 = new LowLevelOpt (ID*10+1, this, TOPO1, UP1, RAND_LOW, AddrLow0, AddrLow1, AddrLow2, AddrLow3, LowEps, isNew);
+		DFEVector<DFEVar> LOW1 = Eva1.getLOW();   // optimal Lower Level Vector will appear here many cycles later
+		DFEVar isValid1 = Eva1.getValid();
+
+		DFEVar TOPO2 = (Tick > 16384);
+		LowLevelOpt Eva2 = new LowLevelOpt (ID*10+2, this, TOPO2, UP2, RAND_LOW, AddrLow4, AddrLow5, AddrLow6, AddrLow7, LowEps, isNew);
+		DFEVector<DFEVar> LOW2 = Eva2.getLOW();
+		DFEVar isValid2 = Eva2.getValid();
+
+		
+		/////////////////////// Buffering Lower Level Best Candidates ///////////////////////
+		
+		// Control Variable of Lower Level Best Candidate Buffer - catching the positive edge of 'isValid'
+		Count.Params LowBufferPushEn1Param = control.count.makeParams(1)
+											.withEnable(isValid1 & ~stream.offset(isValid1, -1))
+											.withWrapMode(WrapMode.STOP_AT_MAX)
+											.withReset(Reset);
+		Count.Params LowBufferPushEn2Param = control.count.makeParams(1)
+											.withEnable(isValid2 & ~stream.offset(isValid2, -1))
+											.withWrapMode(WrapMode.STOP_AT_MAX)
+											.withReset(Reset);
+		Counter LowBufferePushEn1Counter = control.count.makeCounter(LowBufferPushEn1Param);
+		Counter LowBufferePushEn2Counter = control.count.makeCounter(LowBufferPushEn2Param);
+		DFEVar LowBufferPushEn1Count = LowBufferePushEn1Counter.getCount();
+		DFEVar LowBufferPushEn2Count = LowBufferePushEn2Counter.getCount();
+		DFEVar LowBufferPushEn1 = LowBufferPushEn1Count & ~stream.offset(LowBufferPushEn1Count, -1);
+		DFEVar LowBufferPushEn2 = LowBufferPushEn2Count & ~stream.offset(LowBufferPushEn2Count, -1);
+		
+		
+		// Buffering Optimal Lower Level Vector corresponding to external Upper Level Vector
+		DFEVector<DFEVar> OptLOW1 = Reductions.streamHold(LOW1, LowBufferPushEn1);
+		
+		// Buffering Optimal Lower Level Vector corresponding to Upper Level Vector from BRAM
+		DFEVector<DFEVar> OptLOW2 = Reductions.streamHold(LOW2, LowBufferPushEn2);
+//		DFEVector<DFEVar> OptLOW2 = LOW2;		
+
+		/////////////////////// Upper Level Evaluation ///////////////////////
+		
+		optimization.pushPipeliningFactor(Def.PipeliningFactor);
+//		DFEVar Fitness1 = Def.UpLevelEva(isInit ? ABS_RAND_LOW : OptLOW1, isInit ? RAND_LOW : UP1);
+//		DFEVar Fitness2 = Def.FuncType.newInstance(this);
+		DFEVar Fitness1 = Def.UpLevelEva(OptLOW1, UP1);
+		DFEVar Fitness2 = Def.UpLevelEva(OptLOW2, UP2);
+		DFEVar isBetter = Fitness1 < Fitness2;
+		optimization.popPipeliningFactor();
+		
+		/////////////////////// Save Data to BRAM ///////////////////////
+		
+		// Enable Signal for BRAM writing
+		DFEVar NewDataReady = LowBufferPushEn1Count & LowBufferPushEn2Count;
+//		DFEVar NewDataReady = LowBufferPushEn1Count;
+		DFEVar EnBRAMWrite = NewDataReady & ~stream.offset(NewDataReady, -1);
+		
+		// Prepare Data for BRAM
+		DFEVector<DFEVar> ToBRAM = Def.UpLevelVec.newInstance(this);
+		for (int i=0; i<Def.UpLevelSize; i++) ToBRAM[i] <== isBetter ? UP1[i] : UP2[i];
+		
+		// Make Offsets
+		OffsetExpr [] BRAMOffset = new OffsetExpr[Def.UpLevelSize];
+		for (int i=0; i<Def.UpLevelSize; i++) BRAMOffset[i] = stream.makeOffsetAutoLoop("BRAMUpOffset"+ID*10+i);
+
+		// BRAM of Upper Level Variables
+		RamPortParams<DFEVar> [] ReadParam = new RamPortParams[Def.UpLevelSize];
+		RamPortParams<DFEVar> [] WriteParam = new RamPortParams[Def.UpLevelSize];
+		DualPortMemOutputs<DFEVar> [] BRAMOutPut = new DualPortMemOutputs[Def.UpLevelSize];
+		for (int i=0; i<Def.UpLevelSize; i++) {
+			ReadParam[i] = mem.makeRamPortParams(RamPortMode.READ_ONLY, Addr, Def.VarType);
+			WriteParam[i] = mem.makeRamPortParams(RamPortMode.WRITE_ONLY, isInit ? InitAddr : stream.offset(Addr, -BRAMOffset[i]), isInit ? RAND_LOW[i] : stream.offset(ToBRAM[i], -BRAMOffset[i])).withWriteEnable(isInit | stream.offset(EnBRAMWrite, -BRAMOffset[i]));
+			BRAMOutPut[i] = mem.ramDualPort(Def.UpLevelPopulation, RamWriteMode.READ_FIRST, ReadParam[i], WriteParam[i]);
+			BRAMUP[i] <== BRAMOutPut[i].getOutputA();
+		}
+/*		
+		// Lower Level Vector to BRAM
+		DFEVector<DFEVar> LowToBRAM = Def.LowLevelVec.newInstance(this);
+		for (int i=0; i<Def.LowLevelSize; i++) LowToBRAM[i] <== isBetter ? OptLOW1[i] : OptLOW2[i];
+
+		// Make Offsets
+		OffsetExpr [] LowBRAMOffset = new OffsetExpr[Def.LowLevelSize];
+		for (int i=0; i<Def.LowLevelSize; i++) LowBRAMOffset[i] = stream.makeOffsetAutoLoop("LowBRAMOffset"+ID*10+i);
+
+		// BRAM	of Lower Level Variables
+		RamPortParams<DFEVar> [] LowReadParam = new RamPortParams[Def.LowLevelSize];
+		RamPortParams<DFEVar> [] LowWriteParam = new RamPortParams[Def.LowLevelSize];
+		DualPortMemOutputs<DFEVar> [] LowBRAMOutput = new DualPortMemOutputs[Def.LowLevelSize];
+		for (int i=0; i<Def.LowLevelSize; i++) {
+			LowReadParam[i] = mem.makeRamPortParams(RamPortMode.READ_ONLY, Addr, Def.VarType);
+			LowWriteParam[i] = mem.makeRamPortParams(RamPortMode.WRITE_ONLY, isInit ? InitAddr : stream.offset(Addr, -LowBRAMOffset[i]), isInit ? RAND_LOW[i] : stream.offset(LowToBRAM[i], -LowBRAMOffset[i])).withWriteEnable(isInit | stream.offset(EnBRAMWrite, -LowBRAMOffset[i]));
+			LowBRAMOutput[i] = mem.ramDualPort(Def.UpLevelPopulation, RamWriteMode.READ_FIRST, LowReadParam[i], LowWriteParam[i]);
+			BRAMLOW[i] <== LowBRAMOutput[i].getOutputA();
+		}	
+
+		// BRAM of Fitness
+		DFEVar FitToBRAM = isBetter ? Fitness1 : Fitness2;
+		OffsetExpr FitBRAMOffset = stream.makeOffsetAutoLoop("FitBRAMOffset"+ID*10);
+		RamPortParams<DFEVar> FitReadParam = mem.makeRamPortParams(RamPortMode.READ_ONLY, Addr, Def.FuncType);
+		RamPortParams<DFEVar> FitWriteParam = mem.makeRamPortParams(RamPortMode.WRITE_ONLY, isInit ? InitAddr : stream.offset(Addr, -FitBRAMOffset), isInit ? Fitness1 : stream.offset(FitToBRAM, -FitBRAMOffset)).withWriteEnable(isInit | stream.offset(EnBRAMWrite, -FitBRAMOffset));
+		DualPortMemOutputs<DFEVar> FitBRAMOutput = mem.ramDualPort(Def.UpLevelPopulation, RamWriteMode.READ_FIRST, FitReadParam, FitWriteParam);
+		Fitness2 <== FitBRAMOutput.getOutputA();
+*/		
+		//////////////////////// Reset Counter ///////////////////////
+
+		// Reser at the beginning when initialising BRAM
+		// Reset the whole process after writing data to BRAM
+		OffsetExpr ResetOffset = stream.makeOffsetAutoLoop("ResetOffset"+ID);	
+		Reset <== isInit | stream.offset(EnBRAMWrite, -ResetOffset);
+	
+
+		//////////////////////// Output ///////////////////////
+
+		UP_OUT = UP2;
+		LOW_OUT = OptLOW2;
+		FIT_OUT = Fitness2;
+
+
+		//////////////////////// Debug ///////////////////////
+		
+		//debug.simPrintf("[%3d] AddrStore = %d, Addr = %d | UP Store = %d, UP1 = (%.1f, %.1f, %.1f, %.1f, %.1f), UP2 = (%.1f, %.1f, %.1f, %.1f, %.1f) | isValid1 = %d, LOW1 = (%.3f, %.3f, %.3f, %.3f, %.3f) | isValid2 = %d, LOW2 = (%.3f, %.3f, %.3f, %.3f, %.3f) \n", Tick, BRAMBufferPushEn, Addr, UpBufferPushEn, UP1[0], UP1[1], UP1[2], UP1[3], UP1[4], UP2[0], UP2[1], UP2[2], UP2[3], UP2[4], isValid1, LOW1[0], LOW1[1], LOW1[2], LOW1[3], LOW1[4], isValid2, LOW2[0], LOW2[1], LOW2[2], LOW2[3], LOW2[4]); 
+		
+		//debug.simPrintf("[%3d] isValid1 = %d, LOW1 = (%.2f %.2f %.2f %.2f %.2f) | isValid2 = %d, LOW2 = (%.2f %.2f %.2f %.2f %.2f) \n", Tick, isValid1, LOW1[0], LOW1[1], LOW1[2], LOW1[3], LOW1[4], isValid2, LOW2[0], LOW2[1], LOW2[2], LOW2[3], LOW2[4]);
+		
+		//debug.simPrintf("[%4d] UP = (%.2f, %.2f) | Valid = [%d, %d], Count = [%d, %d], PushEn = [%d, %d], EnWrite = %d | Fit = (%f, %f) | BRAM[%d] <= %f (En = %d)\n", Tick, UP1[0], UP2[0], isValid1, isValid2, LowBufferPushEn1Count, LowBufferPushEn2Count, LowBufferPushEn1, LowBufferPushEn2, EnBRAMWrite, Fitness1, Fitness2, stream.offset(Addr, -BRAMOffset[0]), stream.offset(ToBRAM[0], -BRAMOffset[0]), stream.offset(EnBRAMWrite, -BRAMOffset[0]));
+
+	}
+	
+
+}
+

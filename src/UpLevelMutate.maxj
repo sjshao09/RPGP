@@ -1,0 +1,94 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+
+
+class UpLevelMutate extends KernelLib {
+
+	private DFEVector<DFEVar> UP_OUT;
+	
+	public DFEVector<DFEVar> getUP() {return UP_OUT;}
+	
+	public DFEVector<DFEVar> UpLevelMut1 (DFEVector<DFEVar> UP, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> UP_OUT = Def.UpLevelVec.newInstance(this);
+		UP_OUT[0] <== Def.Bound510(UP[0] + RAND[0]);
+		UP_OUT[1] <== Def.Bound510(UP[1] + RAND[1]);
+		UP_OUT[2] <== Def.Bound510(UP[2] + RAND[2]);
+		UP_OUT[3] <== Def.Bound510(UP[3] + RAND[3]);
+		UP_OUT[4] <== Def.Bound510(UP[4] + RAND[4]);
+		return UP_OUT;
+	}
+
+	public DFEVector<DFEVar> UpLevelMut2 (DFEVector<DFEVar> UP, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> UP_OUT = Def.UpLevelVec.newInstance(this);
+		UP_OUT[0] <== Def.Bound510(UP[0] + RAND[0]);
+		UP_OUT[1] <== Def.Bound510(UP[1] + RAND[1]);
+		UP_OUT[2] <== Def.Bound510(UP[2] + RAND[2]);
+		UP_OUT[3] <== Def.Bound51(UP[3] + RAND[3]);
+		UP_OUT[4] <== Def.Bound51(UP[4] + RAND[4]);
+		return UP_OUT;
+	}
+
+	public DFEVector<DFEVar> UpLevelMut3 (DFEVector<DFEVar> UP, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> UP_OUT = Def.UpLevelVec.newInstance(this);
+		UP_OUT[0] <== Def.Bound510(UP[0] + RAND[0]);
+		UP_OUT[1] <== Def.Bound510(UP[1] + RAND[1]);
+		UP_OUT[2] <== Def.Bound510(UP[2] + RAND[2]);
+		UP_OUT[3] <== Def.Bound510(UP[3] + RAND[3]);
+		UP_OUT[4] <== Def.Bound510(UP[4] + RAND[4]);
+		return UP_OUT;
+	}
+
+	public DFEVector<DFEVar> UpLevelMut4 (DFEVector<DFEVar> UP, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> UP_OUT = Def.UpLevelVec.newInstance(this);
+		UP_OUT[0] <== Def.Bound510(UP[0] + RAND[0]);
+		UP_OUT[1] <== Def.Bound510(UP[1] + RAND[1]);
+		UP_OUT[2] <== Def.Bound510(UP[2] + RAND[2]);
+		UP_OUT[3] <== Def.Bound11(UP[3] + RAND[3]);
+		UP_OUT[4] <== Def.Bound11(UP[4] + RAND[4]);
+		return UP_OUT;
+	}
+
+	public DFEVector<DFEVar> UpLevelMut5 (DFEVector<DFEVar> UP, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> UP_OUT = Def.UpLevelVec.newInstance(this);
+		UP_OUT[0] <== Def.Bound510(UP[0] + RAND[0]);
+		UP_OUT[1] <== Def.Bound510(UP[1] + RAND[1]);
+		UP_OUT[2] <== Def.Bound510(UP[2] + RAND[2]);
+		UP_OUT[3] <== Def.Bound510(UP[3] + RAND[3]);
+		UP_OUT[4] <== Def.Bound510(UP[4] + RAND[4]);
+		return UP_OUT;
+	}
+
+	public DFEVector<DFEVar> UpLevelMut6 (DFEVector<DFEVar> UP, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> UP_OUT = Def.UpLevelVec.newInstance(this);
+		UP_OUT[0] <== Def.Bound510(UP[0] + RAND[0]);
+		UP_OUT[1] <== Def.Bound510(UP[1] + RAND[1]);
+		UP_OUT[2] <== Def.Bound510(UP[2] + RAND[2]);
+		UP_OUT[3] <== Def.Bound510(UP[3] + RAND[3]);
+		UP_OUT[4] <== Def.Bound510(UP[4] + RAND[4]);
+		return UP_OUT;
+	}
+
+	UpLevelMutate (KernelLib owner, DFEVector<DFEVar> UP_IN, DFEVector<DFEVar> RAND_IN) {
+	
+		super(owner);
+		
+		// Mutation
+		optimization.pushPipeliningFactor(Def.PipeliningFactor);
+		
+		switch (Def.ProblemNum) {
+			case 1: UP_OUT = UpLevelMut1(UP_IN, RAND_IN); break;
+			case 2: UP_OUT = UpLevelMut2(UP_IN, RAND_IN); break;
+			case 3: UP_OUT = UpLevelMut3(UP_IN, RAND_IN); break;
+			case 4: UP_OUT = UpLevelMut4(UP_IN, RAND_IN); break;
+			case 5: UP_OUT = UpLevelMut5(UP_IN, RAND_IN); break;
+			case 6: UP_OUT = UpLevelMut6(UP_IN, RAND_IN); break;
+			default: UP_OUT = UpLevelMut1(UP_IN, RAND_IN);
+		}
+		
+		optimization.popPipeliningFactor();
+
+	}
+	
+	
+}

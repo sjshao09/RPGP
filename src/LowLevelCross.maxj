@@ -1,0 +1,30 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+
+
+class LowLevelCross extends KernelLib {
+
+	private DFEVector<DFEVar> LOW_OUT_1;
+	private DFEVector<DFEVar> LOW_OUT_2;
+	
+	public DFEVector<DFEVar> getLOW1() {return LOW_OUT_1;}
+	public DFEVector<DFEVar> getLOW2() {return LOW_OUT_2;}
+
+	LowLevelCross (KernelLib owner, DFEVector<DFEVar> LOW_IN_1, DFEVector<DFEVar> LOW_IN_2, DFEVector<DFEVar> RAND_IN) {
+	
+		super(owner);
+		
+		// Crossover
+		LOW_OUT_1 = Def.LowLevelVec.newInstance(this);
+		LOW_OUT_2 = Def.LowLevelVec.newInstance(this);
+		
+		for (int i=0; i<Def.LowLevelSize; i++) {
+			LOW_OUT_1[i] <== (RAND_IN[i] > 0) ? LOW_IN_1[i] : LOW_IN_2[i];
+			LOW_OUT_2[i] <== (RAND_IN[i] > 0) ? LOW_IN_2[i] : LOW_IN_1[i];
+		}
+
+	}
+	
+		
+}

@@ -1,0 +1,150 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+//import com.maxeler.maxcompiler.v2.kernelcompiler.Flush;
+
+
+class UpLevelHub extends Kernel {
+
+
+	UpLevelHub (KernelParameters parameters) {
+	
+		super(parameters);
+		
+		
+		/////////////////////// Inputs ///////////////////////
+		
+		// Sigma of Gaussian Random Number
+		DFEVar Sigma = io.scalarInput("Sigma", Def.VarType);
+		
+		// Eps for lower level convergence
+		DFEVar LowEps = io.scalarInput("LowEps", Def.FuncType);
+		
+		// Eps for upper level convergence
+		DFEVar UpEps = io.scalarInput("UpEps", Def.FuncType);
+		
+		
+		/////////////////////// Gaussian Random Number Generator for Up Level Mutation ///////////////////////
+		
+		Rand128 [] URandGen = new Rand128[Def.UpLevelSize];
+		NrandomCore [] NRandGen = new NrandomCore[Def.UpLevelSize];
+		DFEVector<DFEVar> RAND_IN = Def.UpLevelVec.newInstance(this);
+		
+		optimization.pushPipeliningFactor(Def.PipeliningFactor);
+		for (int i=0; i<Def.UpLevelSize; i++) {
+			URandGen[i] = new Rand128(i, this);
+			NRandGen[i] = new NrandomCore(this, URandGen[i].getRand());
+			RAND_IN[i] <== NRandGen[i].getOutput() * Sigma;
+		}
+		optimization.popPipeliningFactor();
+		
+		/////////////////////// Selection Units ///////////////////////
+		
+		// S1
+		DFEVector<DFEVar> UP_TO_S1 = Def.UpLevelVec.newInstance(this);
+		UpLevelSelect S1 = new UpLevelSelect (1, this, UP_TO_S1, Sigma, LowEps);
+		DFEVector<DFEVar> UP_FROM_S1 = S1.getUP();
+		DFEVector<DFEVar> LOW_FROM_S1 = S1.getLOW();
+		DFEVar FIT_FROM_S1 = S1.getFIT();
+		
+		// S2
+		DFEVector<DFEVar> UP_TO_S2 = Def.UpLevelVec.newInstance(this);
+		UpLevelSelect S2 = new UpLevelSelect (2, this, UP_TO_S2, Sigma, LowEps);
+		DFEVector<DFEVar> UP_FROM_S2 = S2.getUP();
+		DFEVector<DFEVar> LOW_FROM_S2 = S2.getLOW();
+		DFEVar FIT_FROM_S2 = S2.getFIT();
+		
+		// S3
+		DFEVector<DFEVar> UP_TO_S3 = Def.UpLevelVec.newInstance(this);
+		UpLevelSelect S3 = new UpLevelSelect (3, this, UP_TO_S3, Sigma, LowEps);
+		DFEVector<DFEVar> UP_FROM_S3 = S3.getUP();
+		DFEVector<DFEVar> LOW_FROM_S3 = S3.getLOW();
+		DFEVar FIT_FROM_S3 = S3.getFIT();
+		
+		// S4
+		DFEVector<DFEVar> UP_TO_S4 = Def.UpLevelVec.newInstance(this);
+		UpLevelSelect S4 = new UpLevelSelect (4, this, UP_TO_S4, Sigma, LowEps);
+		DFEVector<DFEVar> UP_FROM_S4 = S4.getUP();
+		DFEVector<DFEVar> LOW_FROM_S4 = S4.getLOW();
+		DFEVar FIT_FROM_S4 = S4.getFIT();
+		
+		
+		/////////////////////// Mutation Units ///////////////////////
+		
+		// M1
+		DFEVector<DFEVar> UP_TO_M1 = Def.UpLevelVec.newInstance(this);
+		UpLevelMutate M1 = new UpLevelMutate(this, UP_TO_M1, RAND_IN);
+		DFEVector<DFEVar> UP_FROM_M1 = M1.getUP();
+		
+		// M2
+		DFEVector<DFEVar> UP_TO_M2 = Def.UpLevelVec.newInstance(this);
+		UpLevelMutate M2 = new UpLevelMutate(this, UP_TO_M2, RAND_IN);
+		DFEVector<DFEVar> UP_FROM_M2 = M2.getUP();
+		
+		
+		/////////////////////// Crossover Units ///////////////////////
+		
+		// C1
+		DFEVector<DFEVar> UP1_TO_C1 = Def.UpLevelVec.newInstance(this);
+		DFEVector<DFEVar> UP2_TO_C1 = Def.UpLevelVec.newInstance(this);	
+		UpLevelCross C1 = new UpLevelCross(this, UP1_TO_C1, UP2_TO_C1, RAND_IN);
+		DFEVector<DFEVar> UP1_FROM_C1 = C1.getUP1();
+		DFEVector<DFEVar> UP2_FROM_C1 = C1.getUP2();
+		
+		// C2
+		DFEVector<DFEVar> UP1_TO_C2 = Def.UpLevelVec.newInstance(this);
+		DFEVector<DFEVar> UP2_TO_C2 = Def.UpLevelVec.newInstance(this);	
+		UpLevelCross C2 = new UpLevelCross(this, UP1_TO_C2, UP2_TO_C2, RAND_IN);
+		DFEVector<DFEVar> UP1_FROM_C2 = C2.getUP1();
+		DFEVector<DFEVar> UP2_FROM_C2 = C2.getUP2();
+		
+		
+		/////////////////////// Connections ///////////////////////
+		
+		// Feed Random numbers at the beginning
+		DFEVar isInit = control.count.pulse(Def.UpLevelPopulation*2);  // True at the beginning
+		
+		// Switch Topology every 16384*16384 cycles
+		DFEVar TOPOCount = control.count.simpleCounter(32, 16384*16384*2);
+		DFEVar TOPO = TOPOCount > 16384*16384;
+		
+		for (int i=0; i<Def.UpLevelSize; i++) {
+			UP_TO_M1[i] <== isInit ? RAND_IN[i] : ((TOPO === 0) ? UP_FROM_S4[i] : UP1_FROM_C1[i]);
+			UP_TO_S2[i] <==  isInit ? RAND_IN[i] : ((TOPO === 0) ? UP2_FROM_C2[i] : UP2_FROM_C2[i]);
+			UP1_TO_C2[i] <== isInit ? RAND_IN[i] : ((TOPO === 0) ? UP_FROM_M1[i] : UP_FROM_M1[i]);
+			UP2_TO_C2[i] <==  isInit ? RAND_IN[i] : ((TOPO === 0) ? UP_FROM_S1[i] : UP_FROM_S3[i]);
+			UP_TO_S3[i] <==  isInit ? RAND_IN[i] : ((TOPO === 0) ? UP1_FROM_C1[i] : UP_FROM_M2[i]);
+			UP_TO_M2[i] <==  isInit ? RAND_IN[i] : ((TOPO === 0) ? UP_FROM_S2[i] : UP_FROM_S2[i]);
+			UP_TO_S4[i] <==  isInit ? RAND_IN[i] : ((TOPO === 0) ? UP2_FROM_C1[i] : UP1_FROM_C2[i]);
+			UP1_TO_C1[i] <==  isInit ? RAND_IN[i] : ((TOPO === 0) ? UP_FROM_S3[i] : UP_FROM_S4[i]);
+			UP2_TO_C1[i] <==  isInit ? RAND_IN[i] : ((TOPO === 0) ? UP_FROM_M2[i] : UP_FROM_S1[i]);
+			UP_TO_S1[i] <==  isInit ? RAND_IN[i] : ((TOPO === 0) ? UP1_FROM_C2[i] : UP2_FROM_C1[i]);
+		}
+		
+		
+		/////////////////////// Output ///////////////////////
+		
+		DFEVar Tick = control.count.simpleCounter(32);
+		DFEVar Count1024 = control.count.simpleCounter(10);
+		DFEVar EnOutput = (Count1024 === 0);
+		
+		// Convergence check
+		DFEVar isValid = ~isInit & (FIT_FROM_S1 < UpEps) | (FIT_FROM_S2 < UpEps) | (FIT_FROM_S3 < UpEps) | (FIT_FROM_S4 < UpEps);
+		DFEVar min12 = FIT_FROM_S1 < FIT_FROM_S2 ? FIT_FROM_S1 : FIT_FROM_S2;
+		DFEVar min34 = FIT_FROM_S3 < FIT_FROM_S4 ? FIT_FROM_S3 : FIT_FROM_S4;
+		DFEVar min1234 = min12 < min34 ? min12 : min34;
+
+		DFEVar FIT_OUT = min1234.cast(dfeFloat(8,24)); 
+
+		// Send an output every 1024 cycles
+		io.output("FIT_OUT", FIT_OUT, dfeFloat(8,24));
+		
+		// Display Fitness Values on screen
+		debug.simPrintf(EnOutput, "[%d] S1_FIT = %f, S2_FIT = %f, S3_FIT = %f, S4_FIT = %f, isValid = %d \n", Tick, FIT_FROM_S1, FIT_FROM_S2, FIT_FROM_S3, FIT_FROM_S4, isValid);
+		
+		
+	}
+
+}
+

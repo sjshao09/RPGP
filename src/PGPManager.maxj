@@ -1,0 +1,105 @@
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+
+public class PGPManager extends CustomManager{
+
+
+	PGPManager(EngineParameters ep) {
+		
+		super(ep);
+		
+		/////////////////////// FPGA Settings ///////////////////////
+		
+		config.setDefaultStreamClockFrequency(Def.KernelFrequency);
+		config.setAllowNonMultipleTransitions(true);
+		
+		
+		/////////////////////// Kernel Blocks ///////////////////////
+
+		KernelBlock H1 = addKernel(new UpLevelHub(makeKernelParameters("H1")));
+		
+		addStreamToCPU("FIT_OUT") <== H1.getOutput("FIT_OUT");
+		
+		
+	}
+/*
+	private static EngineInterface LowLevelSelectTest() {
+	
+		EngineInterface engine_interface = new EngineInterface();
+		
+		// 32-bit Floating Point
+		CPUTypes FloatType = CPUTypes.FLOAT;
+		int FloatSize = FloatType.sizeInBytes();
+		
+		// 16-bit Integer
+		CPUTypes IntType = CPUTypes.INT16;
+		int IntSize = IntType.sizeInBytes();
+
+		// Cycles
+		InterfaceParam N = engine_interface.addParam("N", CPUTypes.INT);
+		engine_interface.setTicks("H1", N);
+		
+		// Stream Length - INPUT
+		engine_interface.setStream("RAND_IN", FloatType, FloatSize * N * Def.LowLevelSize);
+		engine_interface.setStream("UP_IN", FloatType, FloatSize * N * Def.LowLevelSize);
+		engine_interface.setStream("ADDR1_IN", IntType, IntSize * N);
+		engine_interface.setStream("ADDR2_IN", IntType, IntSize * N);
+		engine_interface.setStream("ADDR3_IN", IntType, IntSize * N);
+		engine_interface.setStream("ADDR4_IN", IntType, IntSize * N);
+		
+		// Stream Length - OUTPUT
+		engine_interface.setStream("TICK", IntType, IntSize * N);
+		//engine_interface.setStream("LOW_OUT", FloatType, FloatSize * N * Def.LowLevelSize);
+		//engine_interface.setStream("Candidate_OUT", FloatType, FloatSize * N * Def.LowLevelSize);
+		//engine_interface.setStream("Fitness_OUT", FloatType, FloatSize * N);
+		
+		// Retrieve Offsets
+		//InterfaceParam BRAMOffset = engine_interface.getDistanceMeasurement("H1", "BRAMOffset0");
+		//InterfaceParam ValToBRAMOffset = engine_interface.getDistanceMeasurement(s_kernelName, "ValToBRAMOffset");
+
+		return engine_interface;
+	}
+*/
+
+	private static EngineInterface RecursivePGP() {
+	
+		EngineInterface engine_interface = new EngineInterface();
+
+		// Cycles
+		InterfaceParam N = engine_interface.addParam("N", CPUTypes.INT);
+		engine_interface.setTicks("H1", N);
+		
+		// Set Scalar Values
+		InterfaceParam Sigma = engine_interface.addParam("Sigma", CPUTypes.FLOAT);
+		engine_interface.setScalar("H1", "Sigma", Sigma);
+		InterfaceParam LowEps = engine_interface.addParam("LowEps", CPUTypes.FLOAT);
+		engine_interface.setScalar("H1", "LowEps", LowEps);
+		InterfaceParam UpEps = engine_interface.addParam("UpEps", CPUTypes.FLOAT);
+		engine_interface.setScalar("H1", "UpEps", UpEps);
+		
+		// Set Output
+		engine_interface.setStream("FIT_OUT", CPUTypes.FLOAT, CPUTypes.FLOAT.sizeInBytes() * N);
+
+		return engine_interface;
+	}
+
+	public static void main(String[] args) {
+	
+		PGPManager manager = new PGPManager(new EngineParameters(args));
+		
+		BuildConfig Config = new BuildConfig(BuildConfig.Level.FULL_BUILD);
+		Config.setBuildEffort(BuildConfig.Effort.HIGH);
+		Config.setMPPRCostTableSearchRange(1, 4);
+		Config.setMPPRParallelism(4);
+		manager.setBuildConfig(Config);
+		
+		manager.createSLiCinterface(RecursivePGP());
+		manager.build();
+		
+	}
+}

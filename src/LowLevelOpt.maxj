@@ -1,0 +1,125 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.KernelMath;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count.Counter;
+import com.maxeler.maxcompiler.v2.utils.MathUtils;
+
+class LowLevelOpt extends KernelLib {
+
+	private DFEVector<DFEVar> LOW_OUT;
+	private DFEVar isValid;
+	
+	public DFEVector<DFEVar> getLOW() {return LOW_OUT;}
+	public DFEVar getValid() {return isValid;}
+
+	// TOPO: Topology Control Variable, used in MUX, unsigned integer with minimised width to represent number of topologies
+	// UP_IN: Upper Level Vector, should be fixed during each Lower Level Optimisation pass, Def.UpLevelVec
+	// RAND_IN: Random Numbers for Mutation and Crossover, LowLevelVector within range [-1,1], Def.LowLevelVec
+	// ADDR_IN: Addresses for Selection Units 1-4, Random Integers [0, Pupulation-1], Def.AddrType
+	// LowEps: Convergence threshold for lower level optimisation
+	LowLevelOpt (int ID, KernelLib owner, DFEVar TOPO, DFEVector<DFEVar> UP_IN, DFEVector<DFEVar> RAND_IN, DFEVar ADDR_IN1, DFEVar ADDR_IN2,  DFEVar ADDR_IN3, DFEVar ADDR_IN4, DFEVar LowEps, DFEVar isNew) {
+	
+		super(owner);
+		
+		/////////////////////// Selection Units ///////////////////////
+
+		// Counter for Initial Address
+		Count.Params AddrCountParam = control.count.makeParams(MathUtils.bitsToAddress(Def.LowLevelPopulation)).withEnable(isNew);
+		Counter AddrCounter = control.count.makeCounter(AddrCountParam);
+		DFEVar InitAddr = AddrCounter.getCount();		
+
+
+		// S1
+		DFEVector<DFEVar> LOW_TO_S1 = Def.LowLevelVec.newInstance(this);
+		DFEVar ADDR_TO_S1 = isNew ? InitAddr : ADDR_IN1;
+		LowLevelSelect S1 = new LowLevelSelect(ID*10+1, this, LOW_TO_S1, UP_IN, ADDR_TO_S1, isNew);
+		DFEVector<DFEVar> LOW_FROM_S1 = S1.getLOW();
+		DFEVar FIT_FROM_S1 = S1.getFIT();
+		
+		// S2
+		DFEVector<DFEVar> LOW_TO_S2 = Def.LowLevelVec.newInstance(this);
+		DFEVar ADDR_TO_S2 = isNew ? InitAddr : ADDR_IN2;
+		LowLevelSelect S2 = new LowLevelSelect(ID*10+2, this, LOW_TO_S2, UP_IN, ADDR_TO_S2, isNew);
+		DFEVector<DFEVar> LOW_FROM_S2 = S2.getLOW();
+		DFEVar FIT_FROM_S2 = S2.getFIT();
+
+		// S3
+		DFEVector<DFEVar> LOW_TO_S3 = Def.LowLevelVec.newInstance(this);
+		DFEVar ADDR_TO_S3 = isNew ? InitAddr : ADDR_IN3;
+		LowLevelSelect S3 = new LowLevelSelect(ID*10+3, this, LOW_TO_S3, UP_IN, ADDR_TO_S3, isNew);
+		DFEVector<DFEVar> LOW_FROM_S3 = S3.getLOW();
+		DFEVar FIT_FROM_S3 = S3.getFIT();
+		
+		// S4
+		DFEVector<DFEVar> LOW_TO_S4 = Def.LowLevelVec.newInstance(this);
+		DFEVar ADDR_TO_S4 = isNew ? InitAddr : ADDR_IN4;
+		LowLevelSelect S4 = new LowLevelSelect(ID*10+4, this, LOW_TO_S4, UP_IN, ADDR_TO_S4, isNew);
+		DFEVector<DFEVar> LOW_FROM_S4 = S4.getLOW();
+		DFEVar FIT_FROM_S4 = S4.getFIT();
+		
+		/////////////////////// Mutation Units ///////////////////////
+		
+		// M1
+		DFEVector<DFEVar> LOW_TO_M1 = Def.LowLevelVec.newInstance(this);
+		LowLevelMutate M1 = new LowLevelMutate(this, LOW_TO_M1, RAND_IN);
+		DFEVector<DFEVar> LOW_FROM_M1 = M1.getLOW();
+
+		// M2
+		DFEVector<DFEVar> LOW_TO_M2 = Def.LowLevelVec.newInstance(this);
+		LowLevelMutate M2 = new LowLevelMutate(this, LOW_TO_M2, RAND_IN);
+		DFEVector<DFEVar> LOW_FROM_M2 = M2.getLOW();
+		
+		/////////////////////// Crossover Units ///////////////////////
+		
+		// C1
+		DFEVector<DFEVar> LOW1_TO_C1 = Def.LowLevelVec.newInstance(this);
+		DFEVector<DFEVar> LOW2_TO_C1 = Def.LowLevelVec.newInstance(this);	
+		LowLevelCross C1 = new LowLevelCross(this, LOW1_TO_C1, LOW2_TO_C1, RAND_IN);
+		DFEVector<DFEVar> LOW1_FROM_C1 = C1.getLOW1();
+		DFEVector<DFEVar> LOW2_FROM_C1 = C1.getLOW2();
+		
+		// C2
+		DFEVector<DFEVar> LOW1_TO_C2 = Def.LowLevelVec.newInstance(this);
+		DFEVector<DFEVar> LOW2_TO_C2 = Def.LowLevelVec.newInstance(this);
+		LowLevelCross C2 = new LowLevelCross(this, LOW1_TO_C2, LOW2_TO_C2, RAND_IN);
+		DFEVector<DFEVar> LOW1_FROM_C2 = C2.getLOW1();
+		DFEVector<DFEVar> LOW2_FROM_C2 = C2.getLOW2();
+
+
+		/////////////////////// Connections ///////////////////////
+		
+		for (int i=0; i<Def.LowLevelSize; i++) {
+			LOW_TO_M1[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW_FROM_S4[i] : LOW1_FROM_C1[i];
+			LOW_TO_S2[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW2_FROM_C2[i] : LOW2_FROM_C2[i];
+			LOW1_TO_C2[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW_FROM_M1[i] : LOW_FROM_M1[i];
+			LOW2_TO_C2[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW_FROM_S1[i] : LOW_FROM_S3[i];
+			LOW_TO_S3[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW1_FROM_C1[i] : LOW_FROM_M2[i];
+			LOW_TO_M2[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW_FROM_S2[i] : LOW_FROM_S2[i];
+			LOW_TO_S4[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW2_FROM_C1[i] : LOW1_FROM_C2[i];
+			LOW1_TO_C1[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW_FROM_S3[i] : LOW_FROM_S4[i];
+			LOW2_TO_C1[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW_FROM_M2[i] : LOW_FROM_S1[i];
+			LOW_TO_S1[i] <== isNew ? KernelMath.abs(RAND_IN[i]) : (TOPO === 0) ? LOW1_FROM_C2[i] : LOW2_FROM_C1[i];
+		}
+		
+		/////////////////////// Outputs ///////////////////////
+		
+		LOW_OUT = Def.LowLevelVec.newInstance(this);
+		for (int i=0; i<Def.LowLevelSize; i++) LOW_OUT[i] <== LOW_FROM_S1[i];
+		isValid = ~isNew & (FIT_FROM_S1 < LowEps) & (FIT_FROM_S2 < LowEps) & (FIT_FROM_S3 < LowEps) & (FIT_FROM_S4 < LowEps); 
+		
+		/////////////////////// DEBUG ///////////////////////
+		
+		//debug.simPrintf("result.txt", "[%4d] [S1] (%f, %f, %f, %f, %f) => %f \n", Tick, LOW_FROM_S1[0], LOW_FROM_S1[1], LOW_FROM_S1[2], LOW_FROM_S1[3], LOW_FROM_S1[4], FIT_FROM_S1);
+		//debug.simPrintf("result.txt", "[%4d] [S2] (%f, %f, %f, %f, %f) => %f \n", Tick, LOW_FROM_S2[0], LOW_FROM_S2[1], LOW_FROM_S2[2], LOW_FROM_S2[3], LOW_FROM_S2[4], FIT_FROM_S2);
+		//debug.simPrintf("result.txt", "[%4d] [S3] (%f, %f, %f, %f, %f) => %f \n", Tick, LOW_FROM_S3[0], LOW_FROM_S3[1], LOW_FROM_S3[2], LOW_FROM_S3[3], LOW_FROM_S3[4], FIT_FROM_S3);
+		//debug.simPrintf("result.txt", "[%4d] [S4] (%f, %f, %f, %f, %f) => %f \n", Tick, LOW_FROM_S4[0], LOW_FROM_S4[1], LOW_FROM_S4[2], LOW_FROM_S4[3], LOW_FROM_S4[4], FIT_FROM_S4);
+		
+	}		
+}
+		
+		
+		
+		
+		

@@ -1,0 +1,94 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+
+
+class LowLevelMutate extends KernelLib {
+
+	private DFEVector<DFEVar> LOW_OUT;
+	
+	public DFEVector<DFEVar> getLOW() {return LOW_OUT;}
+	
+	public DFEVector<DFEVar> LowLevelMut1 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> LOW_OUT = Def.LowLevelVec.newInstance(this);
+		LOW_OUT[0] <== Def.Boundpi2pi2(LOW[0] + RAND[0]);
+		LOW_OUT[1] <== Def.Boundpi2pi2(LOW[1] + RAND[1]);
+		LOW_OUT[2] <== Def.Bound510(LOW[2] + RAND[2]);
+		LOW_OUT[3] <== Def.Bound510(LOW[3] + RAND[3]);
+		LOW_OUT[4] <== Def.Bound510(LOW[4] + RAND[4]);
+		return LOW_OUT;
+	}
+	
+	public DFEVector<DFEVar> LowLevelMut2 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> LOW_OUT = Def.LowLevelVec.newInstance(this);
+		LOW_OUT[0] <== Def.Bound510(LOW[0] + RAND[0]);
+		LOW_OUT[1] <== Def.Bound510(LOW[1] + RAND[1]);
+		LOW_OUT[2] <== Def.Bound510(LOW[2] + RAND[2]);
+		LOW_OUT[3] <== Def.Bound0e(LOW[3] + RAND[3]);
+		LOW_OUT[4] <== Def.Bound0e(LOW[4] + RAND[4]);
+		return LOW_OUT;
+	}
+
+	public DFEVector<DFEVar> LowLevelMut3 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> LOW_OUT = Def.LowLevelVec.newInstance(this);
+		LOW_OUT[0] <== Def.Bound510(LOW[0] + RAND[0]);
+		LOW_OUT[1] <== Def.Bound510(LOW[1] + RAND[1]);
+		LOW_OUT[2] <== Def.Bound510(LOW[2] + RAND[2]);
+		LOW_OUT[3] <== Def.Boundpi2pi2(LOW[3] + RAND[3]);
+		LOW_OUT[4] <== Def.Boundpi2pi2(LOW[4] + RAND[4]);
+		return LOW_OUT;
+	}
+	
+	public DFEVector<DFEVar> LowLevelMut4 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> LOW_OUT = Def.LowLevelVec.newInstance(this);
+		LOW_OUT[0] <== Def.Bound510(LOW[0] + RAND[0]);
+		LOW_OUT[1] <== Def.Bound510(LOW[1] + RAND[1]);
+		LOW_OUT[2] <== Def.Bound510(LOW[2] + RAND[2]);
+		LOW_OUT[3] <== Def.Bound0e(LOW[3] + RAND[3]);
+		LOW_OUT[4] <== Def.Bound0e(LOW[4] + RAND[4]);
+		return LOW_OUT;
+	}
+	
+	public DFEVector<DFEVar> LowLevelMut5 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> LOW_OUT = Def.LowLevelVec.newInstance(this);
+		LOW_OUT[0] <== Def.Bound510(LOW[0] + RAND[0]);
+		LOW_OUT[1] <== Def.Bound510(LOW[1] + RAND[1]);
+		LOW_OUT[2] <== Def.Bound510(LOW[2] + RAND[2]);
+		LOW_OUT[3] <== Def.Bound510(LOW[3] + RAND[3]);
+		LOW_OUT[4] <== Def.Bound510(LOW[4] + RAND[4]);
+		return LOW_OUT;
+	}
+
+	public DFEVector<DFEVar> LowLevelMut6 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> RAND) {
+		DFEVector<DFEVar> LOW_OUT = Def.LowLevelVec.newInstance(this);
+		LOW_OUT[0] <== Def.Bound510(LOW[0] + RAND[0]);
+		LOW_OUT[1] <== Def.Bound510(LOW[1] + RAND[1]);
+		LOW_OUT[2] <== Def.Bound510(LOW[2] + RAND[2]);
+		LOW_OUT[3] <== Def.Bound510(LOW[3] + RAND[3]);
+		LOW_OUT[4] <== Def.Bound510(LOW[4] + RAND[4]);
+		return LOW_OUT;
+	}
+
+	LowLevelMutate (KernelLib owner, DFEVector<DFEVar> LOW_IN, DFEVector<DFEVar> RAND_IN) {
+	
+		super(owner);
+		
+		// Mutation
+		optimization.pushPipeliningFactor(Def.PipeliningFactor);
+		
+		switch (Def.ProblemNum) {
+			case 1: LOW_OUT = LowLevelMut1(LOW_IN, RAND_IN); break;
+			case 2: LOW_OUT = LowLevelMut2(LOW_IN, RAND_IN); break;
+			case 3: LOW_OUT = LowLevelMut3(LOW_IN, RAND_IN); break;
+			case 4: LOW_OUT = LowLevelMut4(LOW_IN, RAND_IN); break;
+			case 5: LOW_OUT = LowLevelMut5(LOW_IN, RAND_IN); break;
+			case 6: LOW_OUT = LowLevelMut6(LOW_IN, RAND_IN); break;
+			default: LOW_OUT = LowLevelMut1(LOW_IN, RAND_IN);
+		}
+		
+		optimization.popPipeliningFactor();
+
+	}
+	
+	
+}

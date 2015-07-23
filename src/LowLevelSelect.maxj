@@ -1,0 +1,80 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Mem.DualPortMemOutputs;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Mem.RamPortParams;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Mem.RamPortMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Mem.RamWriteMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.utils.MathUtils;
+
+
+
+class LowLevelSelect extends KernelLib {
+
+	private DFEVector<DFEVar> BRAMLow;
+	private DFEVar FitnessBRAM;
+
+	public DFEVector<DFEVar> getLOW() {return BRAMLow;}
+	public DFEVar getFIT() {return FitnessBRAM;}
+	
+
+	LowLevelSelect (int ID, KernelLib owner, DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP, DFEVar ADDR, DFEVar isNew) {
+	
+		super(owner);
+	
+		/////////////////////// Type Conversion ///////////////////////
+
+		DFEVar Addr = ADDR.cast(dfeUInt(MathUtils.bitsToAddress(Def.LowLevelPopulation)));
+			
+		/////////////////////// BRAM of Candidates ///////////////////////
+
+		// Load a candidate from BRAM
+		BRAMLow = Def.LowLevelVec.newInstance(this);
+		
+		// Evaluation - currently two evaluations
+		optimization.pushPipeliningFactor(Def.PipeliningFactor);
+		DFEVar FitnessIN = Def.LowLevelEva(LOW, UP);
+		FitnessBRAM = Def.FuncType.newInstance(this);
+		DFEVar isBetter = FitnessIN < FitnessBRAM;
+		optimization.popPipeliningFactor();
+		
+		// Prepare Data for BRAM
+		DFEVector<DFEVar> ToBRAM = Def.LowLevelVec.newInstance(this);
+		for (int i=0; i<Def.LowLevelSize; i++) ToBRAM[i] <== (isNew|isBetter) ? LOW[i] : BRAMLow[i];
+		DFEVar FitToBRAM = (isNew|isBetter) ? FitnessIN : FitnessBRAM;
+
+		// Make Offsets
+		OffsetExpr [] BRAMOffset = new OffsetExpr[Def.LowLevelSize];
+		for (int i=0; i<Def.LowLevelSize; i++) BRAMOffset[i] = stream.makeOffsetAutoLoop("BRAMOffset"+ID*10+i);
+		OffsetExpr FitBRAMOffset = stream.makeOffsetAutoLoop("FitBRAMOffset"+ID*10);
+
+
+		// BRAM of Lower Level Variables
+		RamPortParams<DFEVar> [] ReadParam = new RamPortParams[Def.LowLevelSize];
+		RamPortParams<DFEVar> [] WriteParam = new RamPortParams[Def.LowLevelSize];
+		DualPortMemOutputs<DFEVar> [] BRAMOutPut = new DualPortMemOutputs[Def.LowLevelSize];
+		for (int i=0; i<Def.LowLevelSize; i++) {
+			ReadParam[i] = mem.makeRamPortParams(RamPortMode.READ_ONLY, Addr, Def.VarType);
+			WriteParam[i] = mem.makeRamPortParams(RamPortMode.WRITE_ONLY, stream.offset(Addr, -BRAMOffset[i]), stream.offset(ToBRAM[i], -BRAMOffset[i]));
+			BRAMOutPut[i] = mem.ramDualPort(Def.LowLevelPopulation, RamWriteMode.READ_FIRST, ReadParam[i], WriteParam[i]);
+			BRAMLow[i] <== BRAMOutPut[i].getOutputA();
+		}
+
+		// BRAM of Lower Level Fitness
+		RamPortParams<DFEVar> FitReadParam = mem.makeRamPortParams(RamPortMode.READ_ONLY, Addr, Def.FuncType);
+		RamPortParams<DFEVar> FitWriteParam = mem.makeRamPortParams(RamPortMode.WRITE_ONLY, stream.offset(Addr, -FitBRAMOffset), stream.offset(FitToBRAM, -FitBRAMOffset));
+		DualPortMemOutputs<DFEVar> FitBRAMOutput = mem.ramDualPort(Def.LowLevelPopulation, RamWriteMode.READ_FIRST, FitReadParam, FitWriteParam);
+		FitnessBRAM <== FitBRAMOutput.getOutputA();
+
+
+		//////////////////////// Debug ///////////////////////
+		
+		//DFEVar Tick = control.count.simpleCounter(32);
+		//debug.simPrintf("Tick = %3d | IN = %2.0f %2.0f %2.0f %2.0f %2.0f ==> %3.0f | BRAM[%2d] = %2.0f %2.0f %2.0f %2.0f %2.0f ==> %3.0f | BRAM[%2d] <== %2.0f %2.0f %2.0f %2.0f %2.0f | Best = %2.0f %2.0f %2.0f %2.0f %2.0f ==> %3.0f\n", Tick, LOW[0], LOW[1], LOW[2], LOW[3], LOW[4], FitnessIN, Addr, BRAMLow[0], BRAMLow[1], BRAMLow[2], BRAMLow[3], BRAMLow[4], FitnessBRAM, stream.offset(Addr, -BRAMOffset[0]), stream.offset(ToBRAM[0], -BRAMOffset[0]), stream.offset(ToBRAM[1], -BRAMOffset[1]), stream.offset(ToBRAM[2], -BRAMOffset[2]), stream.offset(ToBRAM[3], -BRAMOffset[3]), stream.offset(ToBRAM[4], -BRAMOffset[4]), Record[0], Record[1], Record[2], Record[3], Record[4], FitnessBest);
+
+	}
+	
+
+}
+

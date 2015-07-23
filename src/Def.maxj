@@ -1,0 +1,261 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEFix.SignMode;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+//import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.KernelMath;
+//import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEStruct;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEStructType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEStructType.StructFieldType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+
+
+
+class Def {
+
+	///////////////////////// FPGA Settings /////////////////////////
+
+	// Pipelining factor
+	public static final double PipeliningFactor = 0.75;
+
+	// FPGA Frequency
+	public static final int KernelFrequency = 100;
+
+
+	///////////////////////// Problem Parameters /////////////////////////
+	
+	// SMD Test Problem No.1 ~ No.6
+	public static final int ProblemNum = 1;
+
+	// Size of Lower Level Problem -> need to modify evaluation
+	public static final int LowLevelSize = 5;
+	
+	// Size of Upper Level Problem -> need to modify evaluation
+	public static final int UpLevelSize = 5;
+	
+	// Population in each Lower Level Selection Node -> should be power of 2
+	public static final int LowLevelPopulation = 64;
+	
+	// Population in each Upper Level Selection Node -> should be power of 2
+	public static final int UpLevelPopulation = 64;
+	
+	// pi
+	public static final double pi = 3.0;
+	
+	// e
+	public static final double e = 2.7;
+
+
+	///////////////////////// Types /////////////////////////
+
+	// Type of Optimisation Variables
+//	public static final DFEType VarType = KernelLib.dfeFloat(8,24);
+	public static final DFEType VarType = KernelLib.dfeFixOffset(37, -22, SignMode.TWOSCOMPLEMENT);
+	
+	// Type of Objective Functions
+//	public static final DFEType FuncType = KernelLib.dfeFloat(8,24);
+	public static final DFEType FuncType = KernelLib.dfeFixOffset(37, -22, SignMode.TWOSCOMPLEMENT);
+	
+	// BRAM Memory Address: 5-bit
+	public static final DFEType AddrType = KernelLib.dfeUInt(16); //should be 5 - 16 is for debug
+	
+	// Boolean Type
+	public static final DFEType BoolType = KernelLib.dfeBool();
+	
+	// Topology Type - currently unused
+	public static final DFEType TopoType = KernelLib.dfeUInt(1);
+
+	// Vector of Lower Level Variables
+	public static final DFEVectorType<DFEVar> LowLevelVec = new DFEVectorType<DFEVar>(VarType, LowLevelSize);
+	
+	// Vector of Upper Level Variables
+	public static final DFEVectorType<DFEVar> UpLevelVec = new DFEVectorType<DFEVar>(VarType, UpLevelSize);
+	
+	// Struct of Lower Level Variables
+	public static final DFEStructType LowLevelStruct = new DFEStructType(
+		new StructFieldType("Var", LowLevelVec),
+		new StructFieldType("Val", FuncType)
+	);
+	
+
+	
+	//////////////////////// Evaluation Functions ///////////////////////////
+
+	// Lower Level Evaluation
+	public static DFEVar LowLevelEva (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+	
+		switch (ProblemNum) {
+			case 1: return LowLevelEva1(LOW, UP);
+			case 2: return LowLevelEva2(LOW, UP);
+			case 3: return LowLevelEva3(LOW, UP);
+			case 4: return LowLevelEva4(LOW, UP);
+			case 5: return LowLevelEva5(LOW, UP);
+			case 6: return LowLevelEva6(LOW, UP);
+			default: return LowLevelEva1(LOW, UP);
+		}
+
+	}
+
+	// Upper Level Evaluation
+	public static DFEVar UpLevelEva (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		
+		switch (ProblemNum) {
+			case 1: return UpLevelEva1(LOW, UP);
+			case 2: return UpLevelEva2(LOW, UP);
+			case 3: return UpLevelEva3(LOW, UP);
+			case 4: return UpLevelEva4(LOW, UP);
+			case 5: return UpLevelEva5(LOW, UP);
+			case 6: return UpLevelEva6(LOW, UP);
+			default: return UpLevelEva1(LOW, UP);
+		}
+	}
+
+	// Lower Level Evaluation - SMD1
+	public static DFEVar LowLevelEva1 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar f2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
+		DFEVar tan3 = KernelMath.sin(LOW[3]) / KernelMath.cos(LOW[3]);
+		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);
+		DFEVar f3 = (UP[3]-tan3)*(UP[3]-tan3) + (UP[4]-tan4)*(UP[4]-tan4);
+		DFEVar Result = f2 + f3;
+		return Result;
+	}
+	
+	// Upper Level Evaluation - SMD1
+	public static DFEVar UpLevelEva1 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar F1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+		DFEVar F2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
+		DFEVar tan3 = KernelMath.sin(LOW[3]) / KernelMath.cos(LOW[3]);
+		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);
+		DFEVar F3 = 2*UP[3]*(UP[3]-tan3) + 2*UP[4]*(UP[4]-tan4) + tan3*tan3 + tan4*tan4;
+		DFEVar Result = F1 + F2 + F3;
+		return Result;
+	}
+	
+	// Lower Level Evaluation - SMD2
+	public static DFEVar LowLevelEva2 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar f2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
+		DFEVar log3 = KernelMath.log(new KernelMath.Range(0, 3), LOW[3], VarType);
+		DFEVar log4 = KernelMath.log(new KernelMath.Range(0, 3), LOW[4], VarType);
+		DFEVar f3 = (UP[3]-log3)*(UP[3]-log3) + (UP[4]-log4)*(UP[4]-log4);
+		DFEVar Result = f2 + f3;
+		return Result;
+	}
+	
+	// Upper Level Evaluation - SMD2
+	public static DFEVar UpLevelEva2 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar F1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+		DFEVar F2 = -LOW[0]*LOW[0] - LOW[1]*LOW[1] - LOW[2]*LOW[2];
+		DFEVar log3 = KernelMath.log(new KernelMath.Range(0, 3), LOW[3], VarType);
+		DFEVar log4 = KernelMath.log(new KernelMath.Range(0, 3), LOW[4], VarType);
+		DFEVar F3 = UP[3]*UP[3] + UP[4]*UP[4] - (UP[3]-log3)*(UP[3]-log3) - (UP[4]-log4)*(UP[4]-log4);
+		DFEVar Result = F1 + F2 + F3;
+		return Result;
+	}
+	
+	
+	// Lower Level Evaluation - SMD3
+	public static DFEVar LowLevelEva3 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar f2 = 3 + LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2] - KernelMath.cos(2*pi*LOW[0]) - KernelMath.cos(2*pi*LOW[1]) - KernelMath.cos(2*pi*LOW[2]);
+		DFEVar tan3 = KernelMath.sin(LOW[3]) / KernelMath.cos(LOW[3]);
+		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);
+		DFEVar f3 = (UP[3]*UP[3]-tan3)*(UP[3]*UP[3]-tan3) + (UP[4]*UP[4]-tan4)*(UP[4]*UP[4]-tan4);
+		DFEVar Result = f2 + f3;
+		return Result;
+	}
+	
+	// Upper Level Evaluation - SMD3
+	public static DFEVar UpLevelEva3 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar F1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+		DFEVar F2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
+		DFEVar tan3 = KernelMath.sin(LOW[3]) / KernelMath.cos(LOW[3]);
+		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);
+		DFEVar F3 = UP[3]*UP[3] + UP[4]*UP[4] + (UP[3]*UP[3]-tan3)*(UP[3]*UP[3]-tan3) + (UP[4]*UP[4]-tan4)*(UP[4]*UP[4]-tan4);
+		DFEVar Result = F1 + F2 + F3;
+		return Result;
+	}
+	
+	// Lower Level Evaluation - SMD4
+	public static DFEVar LowLevelEva4 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar f2 = 3 + LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2] - KernelMath.cos(2*pi*LOW[0]) - KernelMath.cos(2*pi*LOW[1]) - KernelMath.cos(2*pi*LOW[2]);
+		DFEVar log3 = KernelMath.log(new KernelMath.Range(1, 4), 1+LOW[3], VarType);
+		DFEVar log4 = KernelMath.log(new KernelMath.Range(1, 4), 1+LOW[4], VarType);
+		DFEVar f3 = (KernelMath.abs(UP[3])-log3)*(KernelMath.abs(UP[3])-log3) + (KernelMath.abs(UP[4])-log4)*(KernelMath.abs(UP[4])-log4);
+		DFEVar Result = f2 + f3;
+		return Result;
+	}
+	
+	// Upper Level Evaluation - SMD4
+	public static DFEVar UpLevelEva4 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar F1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+		DFEVar F2 = -LOW[0]*LOW[0] - LOW[1]*LOW[1] - LOW[2]*LOW[2];
+		DFEVar log3 = KernelMath.log(new KernelMath.Range(1, 4), 1+LOW[3], VarType);
+		DFEVar log4 = KernelMath.log(new KernelMath.Range(1, 4), 1+LOW[4], VarType);
+		DFEVar f3 = (KernelMath.abs(UP[3])-log3)*(KernelMath.abs(UP[3])-log3) + (KernelMath.abs(UP[4])-log4)*(KernelMath.abs(UP[4])-log4);
+		DFEVar F3 = UP[3]*UP[3] + UP[4]*UP[4] - f3;
+		DFEVar Result = F1 + F2 + F3;
+		return Result;
+	}
+	
+	
+	// Lower Level Evaluation - SMD5
+	public static DFEVar LowLevelEva5 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar f2 = (LOW[1] - LOW[0]*LOW[0] + (LOW[0]-1)*(LOW[0]-1)) + (LOW[2] - LOW[1]*LOW[1] + (LOW[1]-1)*(LOW[1]-1));
+		DFEVar f3 = (KernelMath.abs(UP[3])-LOW[3]*LOW[3])*(KernelMath.abs(UP[3])-LOW[3]*LOW[3]) + (KernelMath.abs(UP[4])-LOW[4]*LOW[4])*(KernelMath.abs(UP[4])-LOW[4]*LOW[4]);
+		DFEVar Result = f2 + f3;
+		return Result;
+	}
+	
+	// Upper Level Evaluation - SMD5
+	public static DFEVar UpLevelEva5 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar F1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+		DFEVar F2 = -(LOW[1] - LOW[0]*LOW[0] + (LOW[0]-1)*(LOW[0]-1)) - (LOW[2] - LOW[1]*LOW[1] + (LOW[1]-1)*(LOW[1]-1));
+		DFEVar f3 = (KernelMath.abs(UP[3])-LOW[3]*LOW[3])*(KernelMath.abs(UP[3])-LOW[3]*LOW[3]) + (KernelMath.abs(UP[4])-LOW[4]*LOW[4])*(KernelMath.abs(UP[4])-LOW[4]*LOW[4]);
+		DFEVar F3 = UP[3]*UP[3] + UP[4]*UP[4] - f3;
+		DFEVar Result = F1 + F2 + F3;
+		return Result;
+	}
+	
+	// Lower Level Evaluation - SMD6
+	public static DFEVar LowLevelEva6 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar f2 = LOW[0]*LOW[0] + (LOW[2]-LOW[1])*(LOW[2]-LOW[1]);
+		DFEVar f3 = (UP[3]-LOW[3])*(UP[3]-LOW[3]) + (UP[4]-LOW[4])*(UP[4]-LOW[4]);
+		DFEVar Result = f2 + f3;
+		return Result;
+	}
+	
+	
+	// Upper Level Evaluation - SMD6
+	public static DFEVar UpLevelEva6 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+		DFEVar F1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+		DFEVar F2 = -LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
+		DFEVar F3 = UP[3]*UP[3] + UP[4]*UP[4] - (UP[3]-LOW[3])*(UP[3]-LOW[3]) - (UP[4]-LOW[4])*(UP[4]-LOW[4]);
+		DFEVar Result = F1 + F2 + F3;
+		return Result;
+	}
+	
+	
+	
+	//////////////////////// Utility Functions ///////////////////////////
+	
+	public static DFEVar Bound510 (DFEVar IN) {
+		return (IN>10) ? IN-1 : ( (IN<-5) ? IN+1 : IN );
+	}
+	
+	public static DFEVar Bound51 (DFEVar IN) {
+		return (IN>1) ? IN-1 : ( (IN<-5) ? IN+1 : IN );
+	}
+	
+	public static DFEVar Boundpi2pi2 (DFEVar IN) {
+		return (IN>pi/2) ? IN-1 : ( (IN<-pi/2) ? IN+1 : IN );
+	}
+	
+	public static DFEVar Bound0e (DFEVar IN) {
+		return (IN>e) ? IN-1 : ( (IN<0.1) ? IN+1 : IN );
+	}
+	
+	public static DFEVar Bound11 (DFEVar IN) {
+		return (IN>1) ? IN-1 : ( (IN<-1) ? IN+1 : IN );
+	}
+	
+}

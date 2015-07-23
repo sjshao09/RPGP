@@ -1,0 +1,30 @@
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelLib;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+
+
+class UpLevelCross extends KernelLib {
+
+	private DFEVector<DFEVar> UP_OUT_1;
+	private DFEVector<DFEVar> UP_OUT_2;
+	
+	public DFEVector<DFEVar> getUP1() {return UP_OUT_1;}
+	public DFEVector<DFEVar> getUP2() {return UP_OUT_2;}
+
+	UpLevelCross (KernelLib owner, DFEVector<DFEVar> UP_IN_1, DFEVector<DFEVar> UP_IN_2, DFEVector<DFEVar> RAND_IN) {
+	
+		super(owner);
+		
+		// Crossover
+		UP_OUT_1 = Def.UpLevelVec.newInstance(this);
+		UP_OUT_2 = Def.UpLevelVec.newInstance(this);
+		
+		for (int i=0; i<Def.UpLevelSize; i++) {
+			UP_OUT_1[i] <== (RAND_IN[i] > 0) ? UP_IN_1[i] : UP_IN_2[i];
+			UP_OUT_2[i] <== (RAND_IN[i] > 0) ? UP_IN_2[i] : UP_IN_1[i];
+		}
+
+	}
+	
+		
+}
