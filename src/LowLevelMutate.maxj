@@ -11,11 +11,11 @@ class LowLevelMutate extends KernelLib {
 	
 	public DFEVector<DFEVar> LowLevelMut1 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> RAND) {
 		DFEVector<DFEVar> LOW_OUT = Def.LowLevelVec.newInstance(this);
-		LOW_OUT[0] <== Def.Boundpi2pi2(LOW[0] + RAND[0]);
-		LOW_OUT[1] <== Def.Boundpi2pi2(LOW[1] + RAND[1]);
+		LOW_OUT[0] <== Def.Bound510(LOW[0] + RAND[0]);
+		LOW_OUT[1] <== Def.Bound510(LOW[1] + RAND[1]);
 		LOW_OUT[2] <== Def.Bound510(LOW[2] + RAND[2]);
-		LOW_OUT[3] <== Def.Bound510(LOW[3] + RAND[3]);
-		LOW_OUT[4] <== Def.Bound510(LOW[4] + RAND[4]);
+		LOW_OUT[3] <== Def.Boundpi2pi2(LOW[3] + RAND[3]);
+		LOW_OUT[4] <== Def.Boundpi2pi2(LOW[4] + RAND[4]);
 		return LOW_OUT;
 	}
 	

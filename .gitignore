@@ -1,0 +1,18 @@
+# git ignore setting
+
+# gedit backup files
+*~
+
+# object files
+*.o
+*.obj
+*.class
+
+# data files
+*.txt
+
+# build folder
+PGP_*
+
+# Ant build folder
+report

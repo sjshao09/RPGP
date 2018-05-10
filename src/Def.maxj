@@ -41,10 +41,10 @@ class Def {
 	public static final int UpLevelPopulation = 64;
 	
 	// pi
-	public static final double pi = 3.0;
+	public static final double pi = 3.14159265358979323;
 	
 	// e
-	public static final double e = 2.7;
+	public static final double e = 2.71828182845904524;
 
 
 	///////////////////////// Types /////////////////////////
@@ -113,11 +113,12 @@ class Def {
 
 	// Lower Level Evaluation - SMD1
 	public static DFEVar LowLevelEva1 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
-		DFEVar f2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
+	    DFEVar f1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+	    DFEVar f2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
 		DFEVar tan3 = KernelMath.sin(LOW[3]) / KernelMath.cos(LOW[3]);
-		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);
-		DFEVar f3 = (UP[3]-tan3)*(UP[3]-tan3) + (UP[4]-tan4)*(UP[4]-tan4);
-		DFEVar Result = f2 + f3;
+		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);	    	    
+	    DFEVar f3 = (UP[3]-tan3)*(UP[3]-tan3) + (UP[4]-tan4)*(UP[4]-tan4);
+		DFEVar Result = f1 + f2 + f3;
 		return Result;
 	}
 	
@@ -127,18 +128,19 @@ class Def {
 		DFEVar F2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
 		DFEVar tan3 = KernelMath.sin(LOW[3]) / KernelMath.cos(LOW[3]);
 		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);
-		DFEVar F3 = 2*UP[3]*(UP[3]-tan3) + 2*UP[4]*(UP[4]-tan4) + tan3*tan3 + tan4*tan4;
+		DFEVar F3 = UP[3]*UP[3] + UP[4]*UP[4] + (UP[3]-tan3)*(UP[3]-tan3) + (UP[4]-tan4)*(UP[4]-tan4);
 		DFEVar Result = F1 + F2 + F3;
 		return Result;
 	}
 	
 	// Lower Level Evaluation - SMD2
 	public static DFEVar LowLevelEva2 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+	    DFEVar f1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
 		DFEVar f2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
 		DFEVar log3 = KernelMath.log(new KernelMath.Range(0, 3), LOW[3], VarType);
 		DFEVar log4 = KernelMath.log(new KernelMath.Range(0, 3), LOW[4], VarType);
 		DFEVar f3 = (UP[3]-log3)*(UP[3]-log3) + (UP[4]-log4)*(UP[4]-log4);
-		DFEVar Result = f2 + f3;
+		DFEVar Result = f1 + f2 + f3;
 		return Result;
 	}
 	
@@ -156,11 +158,16 @@ class Def {
 	
 	// Lower Level Evaluation - SMD3
 	public static DFEVar LowLevelEva3 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
-		DFEVar f2 = 3 + LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2] - KernelMath.cos(2*pi*LOW[0]) - KernelMath.cos(2*pi*LOW[1]) - KernelMath.cos(2*pi*LOW[2]);
+		DFEVar f1   = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+		DFEVar f2_1 = 3 + LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
+		DFEVar f2_2 = KernelMath.cos(2*pi*LOW[0]) + KernelMath.cos(2*pi*LOW[1]) + KernelMath.cos(2*pi*LOW[2]);
+		DFEVar f2   = f2_1 - f2_2;
 		DFEVar tan3 = KernelMath.sin(LOW[3]) / KernelMath.cos(LOW[3]);
 		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);
-		DFEVar f3 = (UP[3]*UP[3]-tan3)*(UP[3]*UP[3]-tan3) + (UP[4]*UP[4]-tan4)*(UP[4]*UP[4]-tan4);
-		DFEVar Result = f2 + f3;
+		DFEVar f3_1 = UP[3]*UP[3]-tan3;
+		DFEVar f3_2 = UP[4]*UP[4]-tan4;
+		DFEVar f3   = f3_1*f3_1 + f3_2*f3_2;
+		DFEVar Result = f1 + f2 + f3;
 		return Result;
 	}
 	
@@ -170,18 +177,23 @@ class Def {
 		DFEVar F2 = LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
 		DFEVar tan3 = KernelMath.sin(LOW[3]) / KernelMath.cos(LOW[3]);
 		DFEVar tan4 = KernelMath.sin(LOW[4]) / KernelMath.cos(LOW[4]);
-		DFEVar F3 = UP[3]*UP[3] + UP[4]*UP[4] + (UP[3]*UP[3]-tan3)*(UP[3]*UP[3]-tan3) + (UP[4]*UP[4]-tan4)*(UP[4]*UP[4]-tan4);
+		DFEVar F3_1 = UP[3]*UP[3];
+		DFEVar F3_2 = UP[4]*UP[4];
+		DFEVar F3   = F3_1*F3_1 + F3_2*F3_2 + (F3_1-tan3)*(F3_1-tan3) + (F3_2-tan4)*(F3_2-tan4);
 		DFEVar Result = F1 + F2 + F3;
 		return Result;
 	}
 	
 	// Lower Level Evaluation - SMD4
 	public static DFEVar LowLevelEva4 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
-		DFEVar f2 = 3 + LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2] - KernelMath.cos(2*pi*LOW[0]) - KernelMath.cos(2*pi*LOW[1]) - KernelMath.cos(2*pi*LOW[2]);
+	    DFEVar f1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+		DFEVar f2_1 = 3 + LOW[0]*LOW[0] + LOW[1]*LOW[1] + LOW[2]*LOW[2];
+		DFEVar f2_2 = KernelMath.cos(2*pi*LOW[0]) + KernelMath.cos(2*pi*LOW[1]) + KernelMath.cos(2*pi*LOW[2]);
+		DFEVar f2   = f2_1 - f2_2;
 		DFEVar log3 = KernelMath.log(new KernelMath.Range(1, 4), 1+LOW[3], VarType);
 		DFEVar log4 = KernelMath.log(new KernelMath.Range(1, 4), 1+LOW[4], VarType);
 		DFEVar f3 = (KernelMath.abs(UP[3])-log3)*(KernelMath.abs(UP[3])-log3) + (KernelMath.abs(UP[4])-log4)*(KernelMath.abs(UP[4])-log4);
-		DFEVar Result = f2 + f3;
+		DFEVar Result = f1 + f2 + f3;
 		return Result;
 	}
 	
@@ -200,27 +212,37 @@ class Def {
 	
 	// Lower Level Evaluation - SMD5
 	public static DFEVar LowLevelEva5 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
-		DFEVar f2 = (LOW[1] - LOW[0]*LOW[0] + (LOW[0]-1)*(LOW[0]-1)) + (LOW[2] - LOW[1]*LOW[1] + (LOW[1]-1)*(LOW[1]-1));
-		DFEVar f3 = (KernelMath.abs(UP[3])-LOW[3]*LOW[3])*(KernelMath.abs(UP[3])-LOW[3]*LOW[3]) + (KernelMath.abs(UP[4])-LOW[4]*LOW[4])*(KernelMath.abs(UP[4])-LOW[4]*LOW[4]);
-		DFEVar Result = f2 + f3;
+	    DFEVar f1   = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+	    DFEVar f2_1 = LOW[1] - LOW[0]*LOW[0];
+	    DFEVar f2_2 = LOW[2] - LOW[1]*LOW[1];
+		DFEVar f2   = f2_1*f2_1 + (LOW[0]-1)*(LOW[0]-1) + f2_2*f2_2 + (LOW[1]-1)*(LOW[1]-1);
+		DFEVar f3_1 = KernelMath.abs(UP[3]) - LOW[3]*LOW[3];
+		DFEVar f3_2 = KernelMath.abs(UP[4]) - LOW[4]*LOW[4]; 
+		DFEVar f3   = f3_1*f3_1 + f3_2*f3_2;
+		DFEVar Result = f1 + f2 + f3;
 		return Result;
 	}
 	
 	// Upper Level Evaluation - SMD5
 	public static DFEVar UpLevelEva5 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
-		DFEVar F1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
-		DFEVar F2 = -(LOW[1] - LOW[0]*LOW[0] + (LOW[0]-1)*(LOW[0]-1)) - (LOW[2] - LOW[1]*LOW[1] + (LOW[1]-1)*(LOW[1]-1));
-		DFEVar f3 = (KernelMath.abs(UP[3])-LOW[3]*LOW[3])*(KernelMath.abs(UP[3])-LOW[3]*LOW[3]) + (KernelMath.abs(UP[4])-LOW[4]*LOW[4])*(KernelMath.abs(UP[4])-LOW[4]*LOW[4]);
-		DFEVar F3 = UP[3]*UP[3] + UP[4]*UP[4] - f3;
-		DFEVar Result = F1 + F2 + F3;
+		DFEVar F1   = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
+	    DFEVar f2_1 = LOW[1] - LOW[0]*LOW[0];
+	    DFEVar f2_2 = LOW[2] - LOW[1]*LOW[1];
+		DFEVar F2   = f2_1*f2_1 + (LOW[0]-1)*(LOW[0]-1) + f2_2*f2_2 + (LOW[1]-1)*(LOW[1]-1);		
+		DFEVar f3_1 = KernelMath.abs(UP[3]) - LOW[3]*LOW[3];
+		DFEVar f3_2 = KernelMath.abs(UP[4]) - LOW[4]*LOW[4]; 
+		DFEVar f3   = f3_1*f3_1 + f3_2*f3_2;
+		DFEVar F3   = UP[3]*UP[3] + UP[4]*UP[4] - f3;
+		DFEVar Result = F1 - F2 + F3;
 		return Result;
 	}
 	
 	// Lower Level Evaluation - SMD6
 	public static DFEVar LowLevelEva6 (DFEVector<DFEVar> LOW, DFEVector<DFEVar> UP) {
+	    DFEVar f1 = UP[0]*UP[0] + UP[1]*UP[1] + UP[2]*UP[2];
 		DFEVar f2 = LOW[0]*LOW[0] + (LOW[2]-LOW[1])*(LOW[2]-LOW[1]);
 		DFEVar f3 = (UP[3]-LOW[3])*(UP[3]-LOW[3]) + (UP[4]-LOW[4])*(UP[4]-LOW[4]);
-		DFEVar Result = f2 + f3;
+		DFEVar Result = f1 + f2 + f3;
 		return Result;
 	}
 	
@@ -239,23 +261,23 @@ class Def {
 	//////////////////////// Utility Functions ///////////////////////////
 	
 	public static DFEVar Bound510 (DFEVar IN) {
-		return (IN>10) ? IN-1 : ( (IN<-5) ? IN+1 : IN );
+		return (IN>10) ? 10 : ( (IN<-5) ? -5 : IN );
 	}
 	
 	public static DFEVar Bound51 (DFEVar IN) {
-		return (IN>1) ? IN-1 : ( (IN<-5) ? IN+1 : IN );
+		return (IN>1) ? 1 : ( (IN<-5) ? -5 : IN );
 	}
 	
 	public static DFEVar Boundpi2pi2 (DFEVar IN) {
-		return (IN>pi/2) ? IN-1 : ( (IN<-pi/2) ? IN+1 : IN );
+		return (IN>pi/2.0) ? pi/2.0 : ( (IN<-pi/2) ? -pi/2.0 : IN );
 	}
 	
 	public static DFEVar Bound0e (DFEVar IN) {
-		return (IN>e) ? IN-1 : ( (IN<0.1) ? IN+1 : IN );
+		return (IN>e) ? e : ( (IN<0) ? 0 : IN );
 	}
 	
 	public static DFEVar Bound11 (DFEVar IN) {
-		return (IN>1) ? IN-1 : ( (IN<-1) ? IN+1 : IN );
+		return (IN>1) ? 1 : ( (IN<-1) ? -1 : IN );
 	}
 	
 }
